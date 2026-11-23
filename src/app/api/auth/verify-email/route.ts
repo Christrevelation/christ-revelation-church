@@ -22,8 +22,10 @@ export async function POST(request: Request) {
 
     const targetEmail = parsed.data.email.trim().toLowerCase();
 
-    // 1. Check Super Admins defined in NEXT_PUBLIC_ADMIN_EMAIL
-    const adminEmails = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || '')
+    // 1. Check Super Admins defined in ADMIN_EMAIL or NEXT_PUBLIC_ADMIN_EMAIL
+    const rawAdminEmails =
+      process.env.ADMIN_EMAIL || process.env.NEXT_PUBLIC_ADMIN_EMAIL || '';
+    const adminEmails = rawAdminEmails
       .split(',')
       .map((e) => e.trim().toLowerCase())
       .filter(Boolean);

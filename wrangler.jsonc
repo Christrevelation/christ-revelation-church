@@ -1,6 +1,5 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "account_id": "5e427e81417207a11e5809304e9ff532",
   "main": ".open-next/worker.js",
   "name": "christrevelationchurch",
   "compatibility_date": "2026-03-01",
@@ -8,6 +7,7 @@
     "nodejs_compat",
     "global_fetch_strictly_public"
   ],
+  "keep_vars": true,
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
@@ -20,10 +20,5 @@
   ],
   "observability": {
     "enabled": true
-  },
-  "vars": {
-    "NEXT_PUBLIC_ADMIN_EMAIL": "shaz80170@gmail.com,",
-    "NEXT_PUBLIC_SUPABASE_URL": "https://psxdxygtenkaurdbxgvq.supabase.co",
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzeGR4eWd0ZW5rYXVyZGJ4Z3ZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM3Njg0MzUsImV4cCI6MjEwOTM0NDQzNX0.eVCA3eIiCMgA_-A6EaMuX7rc-AT2rSdPe4atQXv7rIc"
   }
 }
