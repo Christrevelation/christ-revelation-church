@@ -1,7 +1,10 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import {
+  createClient,
+  ensureBrowserSupabaseConfig,
+} from '@/lib/supabase/client';
 import { useRouter, usePathname } from 'next/navigation';
 
 export const ADMIN_SESSION_STORAGE_KEY = 'crc_admin_session';
@@ -56,6 +59,7 @@ export async function signOutAdmin() {
     }
   }
   try {
+    await ensureBrowserSupabaseConfig();
     const supabase = createClient();
     await supabase.auth.signOut();
   } catch {
@@ -92,8 +96,8 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    const supabase = createClient();
     let mounted = true;
+    let subscriptionRef: { unsubscribe: () => void } | null = null;
 
     const applyPersisted = (persisted: PersistedAdminSession) => {
       if (!mounted) return;
@@ -104,145 +108,158 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
     };
 
-    const checkAuth = async () => {
+    const init = async () => {
       // 1. Immediately restore persisted admin session if already logged in (never expire until explicit logout)
       const persisted = getPersistedAdminSession();
       if (persisted) {
         applyPersisted(persisted);
       }
 
-      try {
-        // 2. If redirected to /admin?code=... from OAuth callback fallback, exchange code first
-        if (typeof window !== 'undefined') {
-          const params = new URLSearchParams(window.location.search);
-          const code = params.get('code');
-          if (code) {
-            await supabase.auth.exchangeCodeForSession(code);
-            // Clean ?code= from URL without reloading
-            const cleanUrl = window.location.pathname;
-            window.history.replaceState({}, '', cleanUrl);
-          }
-        }
+      // Ensure runtime Supabase URL & Anon Key from Cloudflare Worker bindings are loaded before creating client
+      await ensureBrowserSupabaseConfig();
+      if (!mounted) return;
+      const supabase = createClient();
 
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-
-        // Check if we have a session user email or a pending verified email from Step 1
-        const sessionEmail = session?.user?.email?.trim().toLowerCase();
-        const pendingEmail =
-          typeof window !== 'undefined'
-            ? window.localStorage.getItem(ADMIN_PENDING_EMAIL_KEY)?.trim().toLowerCase()
-            : null;
-        const emailToVerify = sessionEmail || persisted?.email || pendingEmail;
-
-        if (!emailToVerify) {
-          if (mounted && !persisted) {
-            setUser(null);
-            setRole(null);
-            setIsLoading(false);
-          }
-          return;
-        }
-
-        // Verify through secure endpoint which handles both env and DB checks
-        const res = await fetch('/api/auth/verify-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: emailToVerify }),
-        });
-
-        // Only treat explicit 403 as unauthorized; never log out on network/429/500 transient errors
-        if (res.status === 403) {
+      const checkAuth = async () => {
+        try {
+          // 2. If redirected to /admin?code=... from OAuth callback fallback, exchange code first
           if (typeof window !== 'undefined') {
-            window.localStorage.removeItem(ADMIN_SESSION_STORAGE_KEY);
-            window.localStorage.removeItem(ADMIN_PENDING_EMAIL_KEY);
+            const params = new URLSearchParams(window.location.search);
+            const code = params.get('code');
+            if (code) {
+              await supabase.auth.exchangeCodeForSession(code);
+              // Clean ?code= from URL without reloading
+              const cleanUrl = window.location.pathname;
+              window.history.replaceState({}, '', cleanUrl);
+            }
           }
-          await supabase.auth.signOut();
-          if (mounted) {
-            setUser(null);
-            setRole(null);
-            setIsLoading(false);
-            router.push('/?error=unauthorized');
+
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+
+          // Check if we have a session user email or a pending verified email from Step 1
+          const sessionEmail = session?.user?.email?.trim().toLowerCase();
+          const pendingEmail =
+            typeof window !== 'undefined'
+              ? window.localStorage.getItem(ADMIN_PENDING_EMAIL_KEY)?.trim().toLowerCase()
+              : null;
+          const currentPersisted = getPersistedAdminSession();
+          const emailToVerify = sessionEmail || currentPersisted?.email || pendingEmail;
+
+          if (!emailToVerify) {
+            if (mounted && !currentPersisted) {
+              setUser(null);
+              setRole(null);
+              setIsLoading(false);
+            }
+            return;
           }
-          return;
-        }
 
-        if (!res.ok) {
-          // Transient error: keep existing persisted session if available
-          if (mounted) setIsLoading(false);
-          return;
-        }
+          // Verify through secure endpoint which handles both env and DB checks
+          const res = await fetch('/api/auth/verify-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: emailToVerify }),
+          });
 
-        const data = await res.json();
-        if (!data.success) {
-          if (mounted && !persisted) {
-            setIsLoading(false);
+          // Only treat explicit 403 as unauthorized; never log out on network/429/500 transient errors
+          if (res.status === 403) {
+            if (typeof window !== 'undefined') {
+              window.localStorage.removeItem(ADMIN_SESSION_STORAGE_KEY);
+              window.localStorage.removeItem(ADMIN_PENDING_EMAIL_KEY);
+            }
+            await supabase.auth.signOut();
+            if (mounted) {
+              setUser(null);
+              setRole(null);
+              setIsLoading(false);
+              router.push('/?error=unauthorized');
+            }
+            return;
           }
-          return;
-        }
 
-        const resolvedUser = session?.user ||
-          persisted?.user || {
+          if (!res.ok) {
+            // Transient error: keep existing persisted session if available
+            if (mounted) setIsLoading(false);
+            return;
+          }
+
+          const data = await res.json();
+          if (!data.success) {
+            if (mounted && !currentPersisted) {
+              setIsLoading(false);
+            }
+            return;
+          }
+
+          const resolvedUser = session?.user ||
+            currentPersisted?.user || {
+              email: emailToVerify,
+              user_metadata: {
+                full_name: emailToVerify.split('@')[0],
+              },
+            };
+
+          const sessionPayload: PersistedAdminSession = {
             email: emailToVerify,
-            user_metadata: {
-              full_name: emailToVerify.split('@')[0],
-            },
+            role: data.role,
+            permissions: data.permissions || ['all'],
+            subadminId: data.id || null,
+            user: resolvedUser,
+            loggedInAt: currentPersisted?.loggedInAt || new Date().toISOString(),
           };
 
-        const sessionPayload: PersistedAdminSession = {
-          email: emailToVerify,
-          role: data.role,
-          permissions: data.permissions || ['all'],
-          subadminId: data.id || null,
-          user: resolvedUser,
-          loggedInAt: persisted?.loggedInAt || new Date().toISOString(),
-        };
+          savePersistedAdminSession(sessionPayload);
 
-        savePersistedAdminSession(sessionPayload);
-
-        if (mounted) {
-          setUser(resolvedUser);
-          setRole(sessionPayload.role);
-          setPermissions(sessionPayload.permissions);
-          setSubadminId(sessionPayload.subadminId);
-          setIsLoading(false);
+          if (mounted) {
+            setUser(resolvedUser);
+            setRole(sessionPayload.role);
+            setPermissions(sessionPayload.permissions);
+            setSubadminId(sessionPayload.subadminId);
+            setIsLoading(false);
+          }
+        } catch (err) {
+          console.error('Auth check error:', err);
+          if (mounted) setIsLoading(false);
         }
-      } catch (err) {
-        console.error('Auth check error:', err);
-        if (mounted) setIsLoading(false);
-      }
+      };
+
+      await checkAuth();
+      if (!mounted) return;
+
+      // Listen for auth changes, but never expire a persisted admin session unless explicitly signed out
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange((event) => {
+        if (event === 'SIGNED_OUT') {
+          if (isExplicitSignOut) {
+            isExplicitSignOut = false;
+            setRole(null);
+            setPermissions([]);
+            setSubadminId(null);
+            setUser(null);
+            router.push('/');
+          } else {
+            // Background token refresh or cookie hiccup: keep persisted admin session alive
+            const latestPersisted = getPersistedAdminSession();
+            if (latestPersisted) {
+              applyPersisted(latestPersisted);
+            }
+          }
+        } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          void checkAuth();
+        }
+      });
+
+      subscriptionRef = subscription;
     };
 
-    checkAuth();
-
-    // Listen for auth changes, but never expire a persisted admin session unless explicitly signed out
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_OUT') {
-        if (isExplicitSignOut) {
-          isExplicitSignOut = false;
-          setRole(null);
-          setPermissions([]);
-          setSubadminId(null);
-          setUser(null);
-          router.push('/');
-        } else {
-          // Background token refresh or cookie hiccup: keep persisted admin session alive
-          const persisted = getPersistedAdminSession();
-          if (persisted) {
-            applyPersisted(persisted);
-          }
-        }
-      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        checkAuth();
-      }
-    });
+    void init();
 
     return () => {
       mounted = false;
-      subscription.unsubscribe();
+      subscriptionRef?.unsubscribe();
     };
   }, [router]);
 

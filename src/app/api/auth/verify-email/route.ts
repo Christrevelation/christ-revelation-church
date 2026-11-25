@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { applyRateLimit, generalLimiter } from '@/lib/rateLimit';
 import { verifyEmailSchema } from '@/lib/validation';
+import { getRuntimeEnv, getServerSupabaseConfig } from '@/lib/runtimeEnv';
 
 export async function POST(request: Request) {
   // Use generalLimiter so active admin sessions and React Strict Mode double-mounts are never 429-locked
@@ -22,9 +23,9 @@ export async function POST(request: Request) {
 
     const targetEmail = parsed.data.email.trim().toLowerCase();
 
-    // 1. Check Super Admins defined in ADMIN_EMAIL or NEXT_PUBLIC_ADMIN_EMAIL
+    // 1. Check Super Admins defined in ADMIN_EMAIL or NEXT_PUBLIC_ADMIN_EMAIL at runtime
     const rawAdminEmails =
-      process.env.ADMIN_EMAIL || process.env.NEXT_PUBLIC_ADMIN_EMAIL || '';
+      getRuntimeEnv('ADMIN_EMAIL') || getRuntimeEnv('NEXT_PUBLIC_ADMIN_EMAIL') || '';
     const adminEmails = rawAdminEmails
       .split(',')
       .map((e) => e.trim().toLowerCase())
@@ -40,9 +41,8 @@ export async function POST(request: Request) {
     }
 
     // 2. Check Subadmins in Supabase public.subadmins table
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey =
-      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const { url: supabaseUrl, anonKey, serviceRoleKey } = getServerSupabaseConfig();
+    const supabaseKey = serviceRoleKey || anonKey;
 
     if (supabaseUrl && supabaseKey) {
       const supabaseAdmin = createClient(supabaseUrl, supabaseKey, {

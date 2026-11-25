@@ -62,6 +62,7 @@ import { Toaster } from "react-hot-toast";
 import { ConfirmDialogProvider } from "@/components/ui/ConfirmDialogProvider";
 import AdminLoginModal from "@/components/AdminLoginModal";
 import ErrorToastHandler from "@/components/ErrorToastHandler";
+import RuntimeSupabaseConfig from "@/components/RuntimeSupabaseConfig";
 
 export const metadata: Metadata = {
   title: "Christ Revelation Church",
@@ -77,6 +78,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <ConfirmDialogProvider>
+          <RuntimeSupabaseConfig />
           <Navbar />
           {children}
           <Footer />

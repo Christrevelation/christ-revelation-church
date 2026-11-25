@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import type { NextRequest } from 'next/server';
+import { getRequestOrigin, getServerSupabaseConfig } from '@/lib/runtimeEnv';
 
 const ONE_YEAR_IN_SECONDS = 60 * 60 * 24 * 365;
 
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
+  const origin = getRequestOrigin(request);
   const code = searchParams.get('code');
   const error = searchParams.get('error');
   const errorDescription = searchParams.get('error_description');
@@ -24,10 +26,11 @@ export async function GET(request: NextRequest) {
   }
 
   if (code) {
+    const { url, anonKey } = getServerSupabaseConfig();
     let supabaseResponse = NextResponse.redirect(`${origin}/admin`);
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      url || 'https://placeholder.supabase.co',
+      anonKey || 'placeholder-anon-key',
       {
         cookies: {
           getAll() {

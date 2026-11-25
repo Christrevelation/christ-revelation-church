@@ -3,7 +3,10 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Lock, ShieldCheck, ChevronRight, AlertCircle } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import {
+  createClient,
+  ensureBrowserSupabaseConfig,
+} from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import {
   ADMIN_PENDING_EMAIL_KEY,
@@ -33,6 +36,7 @@ function AdminLoginModalInner() {
         }
 
         // Also check if Supabase has an active session for an authorized admin
+        await ensureBrowserSupabaseConfig();
         const supabase = createClient();
         const {
           data: { session },
@@ -102,19 +106,14 @@ function AdminLoginModalInner() {
     setIsLoading(true);
     setInlineError(null);
 
-    const supabase = createClient();
-    const normalizedEmail = email.trim().toLowerCase();
-    const { error: oauthError } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-        queryParams: normalizedEmail
-          ? { login_hint: normalizedEmail }
-          : { prompt: 'select_account' },
-      },
-    });
-
-    if (oauthError) {
+    try {
+      await ensureBrowserSupabaseConfig();
+      const normalizedEmail = email.trim().toLowerCase();
+      const targetUrl = normalizedEmail
+        ? `/api/auth/google?email=${encodeURIComponent(normalizedEmail)}`
+        : '/api/auth/google';
+      window.location.href = targetUrl;
+    } catch {
       setInlineError('Failed to start Google sign-in. Please try again.');
       setIsLoading(false);
     }
