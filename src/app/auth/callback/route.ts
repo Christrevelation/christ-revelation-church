@@ -61,6 +61,10 @@ export async function GET(request: NextRequest) {
         path: '/',
         sameSite: 'lax',
       });
+      supabaseResponse.cookies.set('crc_oauth_pending', '', {
+        maxAge: 0,
+        path: '/',
+      });
       return supabaseResponse;
     }
 

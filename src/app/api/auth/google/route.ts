@@ -60,6 +60,11 @@ export async function GET(request: NextRequest) {
   }
 
   const response = NextResponse.redirect(data.url);
+  response.cookies.set('crc_oauth_pending', '1', {
+    maxAge: 600,
+    path: '/',
+    sameSite: 'lax',
+  });
   cookiesToForward.forEach(({ name, value, options }) => {
     response.cookies.set(name, value, {
       ...(options as Record<string, unknown>),

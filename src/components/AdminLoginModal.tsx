@@ -91,6 +91,19 @@ function AdminLoginModalInner() {
         if (typeof window !== 'undefined') {
           window.localStorage.setItem(ADMIN_PENDING_EMAIL_KEY, normalizedEmail);
         }
+
+        // If Supabase already has an active session for this verified admin, go straight to /admin!
+        await ensureBrowserSupabaseConfig();
+        const supabase = createClient();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (session?.user?.email?.trim().toLowerCase() === normalizedEmail) {
+          setIsOpen(false);
+          router.push('/admin');
+          return;
+        }
+
         setStep(2);
       } else {
         setInlineError(data.error || 'This email is not registered as an admin.');
