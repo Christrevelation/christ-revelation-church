@@ -55,8 +55,14 @@ export function getBrowserSupabaseConfig(): PublicSupabaseConfig {
   }
 
   return {
-    url: buildUrl || 'https://placeholder.supabase.co',
-    anonKey: buildKey || 'placeholder-anon-key',
+    url:
+      buildUrl && !buildUrl.includes('placeholder.supabase.co')
+        ? buildUrl
+        : 'https://psxdxygtenkaurdbxgvq.supabase.co',
+    anonKey:
+      buildKey && buildKey !== 'placeholder-anon-key'
+        ? buildKey
+        : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzeGR4eWd0ZW5rYXVyZGJ4Z3ZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM3Njg0MzUsImV4cCI6MjEwOTM0NDQzNX0.eVCA3eIiCMgA_-A6EaMuX7rc-AT2rSdPe4atQXv7rIc',
   };
 }
 

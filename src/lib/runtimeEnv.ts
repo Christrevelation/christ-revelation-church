@@ -31,12 +31,14 @@ export function getServerSupabaseConfig() {
   const url =
     getRuntimeEnv('NEXT_PUBLIC_SUPABASE_URL') ||
     getRuntimeEnv('SUPABASE_URL') ||
-    '';
+    'https://psxdxygtenkaurdbxgvq.supabase.co';
   const anonKey =
     getRuntimeEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY') ||
     getRuntimeEnv('SUPABASE_ANON_KEY') ||
-    '';
-  const serviceRoleKey = getRuntimeEnv('SUPABASE_SERVICE_ROLE_KEY') || '';
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzeGR4eWd0ZW5rYXVyZGJ4Z3ZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM3Njg0MzUsImV4cCI6MjEwOTM0NDQzNX0.eVCA3eIiCMgA_-A6EaMuX7rc-AT2rSdPe4atQXv7rIc';
+  const serviceRoleKey =
+    getRuntimeEnv('SUPABASE_SERVICE_ROLE_KEY') ||
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBzeGR4eWd0ZW5rYXVyZGJ4Z3ZxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5Mzc2ODQzNSwiZXhwIjoyMTA5MzQ0NDM1fQ.xOCGEIUwmSrK19R0pBpa4rTJapSZoHGQFE_Oz2ChJvA';
 
   return { url, anonKey, serviceRoleKey };
 }
