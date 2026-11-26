@@ -217,11 +217,10 @@ function AdminLoginModalInner() {
                           setInlineError(null);
                         }}
                         placeholder="ex. admin@christrevelation.org"
-                        className={`w-full bg-[#f6f6f7] rounded-2xl px-4 py-3 text-[14px] outline-none transition-all placeholder:text-[#a1a1aa] font-medium text-gray-900 ${
-                          inlineError
-                            ? 'ring-2 ring-red-400 bg-red-50'
-                            : 'focus:bg-white focus:ring-2 focus:ring-black'
-                        }`}
+                        className={`w-full bg-[#f6f6f7] rounded-2xl px-4 py-3 text-[14px] outline-none transition-all placeholder:text-[#a1a1aa] font-medium text-gray-900 ${inlineError
+                          ? 'ring-2 ring-red-400 bg-red-50'
+                          : 'focus:bg-white focus:ring-2 focus:ring-black'
+                          }`}
                         required
                       />
                       {inlineError && (
